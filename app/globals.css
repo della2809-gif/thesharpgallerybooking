@@ -189,7 +189,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .completeScreen button i { font-size: 24px; font-style: normal; }
 
 /* Staff board */
-.boardTitle > button { min-height: 52px; border: 0; padding: 0 19px; color: white; background: var(--forest); font-size: 11px; font-weight: 800; }
+.boardQuickActions { display: flex; gap: 8px; }
+.boardQuickActions button { min-height: 52px; border: 1px solid var(--forest); padding: 0 17px; color: var(--forest); background: transparent; font-size: 10px; font-weight: 800; }
+.boardQuickActions button:last-child { color: white; background: var(--forest); }
+.boardTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: 8px; margin-bottom: 12px; }
+.boardTabs button { min-height: 58px; border: 1px solid #d5dbd5; padding: 0 18px; color: #687870; background: var(--paper); font-size: 11px; font-weight: 900; text-align: left; }
+.boardTabs button.active { border-color: var(--forest); color: white; background: var(--forest); }
+.boardTabs span { display: inline-grid; min-width: 24px; height: 24px; place-items: center; margin-left: 8px; border-radius: 20px; color: var(--forest); background: var(--pink); font-size: 9px; }
 .boardStats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; margin-bottom: 14px; }
 .boardStats article { min-height: 106px; padding: 22px; border: 1px solid var(--line); background: var(--paper); }
 .boardStats small, .boardStats strong { display: block; }
@@ -206,6 +212,19 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .waitRow > div:first-child > strong { color: var(--forest); font-family: Georgia, serif; font-size: 18px; }
 .waitRow strong { font-size: 11px; }
 .waitRow small { margin-bottom: 4px; color: #929a96; font-size: 8px; }
+.orderRow { display: grid; min-height: 94px; grid-template-columns: 90px 135px minmax(260px, 1fr) 60px 82px 175px; gap: 13px; align-items: center; padding: 14px 20px; border-top: 1px solid #e8eae4; }
+.orderRow:first-of-type { border-top: 0; }
+.orderIdentity strong, .orderIdentity small, .orderCustomer strong, .orderCustomer small, .orderTotal strong, .orderTotal small { display: block; }
+.orderIdentity strong { color: var(--forest); font-family: Georgia, serif; font-size: 18px; }
+.orderIdentity small, .orderCustomer small, .orderTotal small { margin-top: 4px; color: #929a96; font-size: 8px; }
+.orderCustomer strong, .orderTotal strong { font-size: 11px; }
+.orderMenu { display: grid; gap: 5px; }
+.orderMenu span { display: flex; gap: 5px; align-items: baseline; color: #3f4d46; font-size: 10px; line-height: 1.35; }
+.orderMenu small { color: #8a938e; font-size: 8px; white-space: nowrap; }
+.orderStatus { justify-self: start; border-radius: 20px; padding: 7px 10px; font-size: 8px; font-weight: 900; white-space: nowrap; }
+.orderStatus.received { color: #7b6440; background: #f5eddb; }
+.orderStatus.ready { color: #34644c; background: #dfede3; }
+.orderStatus.cancelled { color: #7c827e; background: #eceee9; }
 .boardStatus { justify-self: start; border-radius: 20px; padding: 7px 10px; font-size: 8px; font-weight: 900; }
 .boardStatus.waiting { color: #7b6440; background: #f5eddb; }
 .boardStatus.notified { color: #34644c; background: #dfede3; }
@@ -221,6 +240,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .productGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cartPanel { padding: 20px; }
   .waitRow { grid-template-columns: 90px 1fr 60px 60px 80px 195px; padding-inline: 15px; }
+  .orderRow { grid-template-columns: 80px 120px minmax(220px, 1fr) 55px 75px 165px; padding-inline: 15px; }
 }
 
 @media (max-width: 1100px) {
@@ -256,12 +276,19 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .waitIntro li { align-items: flex-start; }
   .waitIntro li small { display: none; }
   .waitForm { padding: 30px 28px 26px; }
+  .boardTitle { align-items: stretch; }
+  .boardQuickActions button { flex: 1; }
+  .boardTabs { grid-template-columns: repeat(2, 1fr); }
   .boardStats { grid-template-columns: repeat(3, 1fr); }
   .waitRow { grid-template-columns: 75px 1fr 60px 70px; gap: 10px; }
   .waitRow > div:nth-child(4) { display: none; }
   .boardStatus { display: none; }
   .boardActions { grid-column: span 4; justify-content: stretch; }
   .boardActions button { flex: 1; min-height: 48px; }
+  .orderRow { grid-template-columns: 80px 1fr 70px; gap: 10px; }
+  .orderMenu { grid-column: 1 / -1; padding: 10px 0; border-top: 1px dashed #dfe3dc; border-bottom: 1px dashed #dfe3dc; }
+  .orderStatus { grid-column: 1 / 2; }
+  .orderRow .boardActions { grid-column: 2 / -1; }
 }
 
 @media (max-width: 580px) {
@@ -282,6 +309,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .waitTwoColumns { grid-template-columns: 1fr; }
   .boardStats article { min-height: 90px; padding: 14px; }
   .boardStats strong { font-size: 23px; }
+  .boardQuickActions { flex-direction: column; }
+  .boardTabs button { min-height: 54px; padding-inline: 11px; font-size: 9px; }
   .waitRow { grid-template-columns: 70px 1fr 50px; }
   .waitRow > div:nth-child(4), .boardStatus { display: none; }
   .boardActions { grid-column: span 3; }

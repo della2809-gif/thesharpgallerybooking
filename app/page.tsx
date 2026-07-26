@@ -28,6 +28,19 @@ type Product = {
   temperatureOptions: Temperature[];
 };
 type CartItem = Product & { temperature: Temperature; quantity: number };
+type BoardView = "orders" | "waitlist";
+type OrderStatus = "received" | "ready" | "cancelled";
+type BeverageOrder = {
+  id: number;
+  orderNo: string;
+  customerName: string;
+  phoneMasked: string;
+  items: Array<{ productId: number; name: string; temperature: string; quantity: number }>;
+  totalItems: number;
+  status: OrderStatus;
+  notificationStatus: string;
+  createdAt: string;
+};
 
 const statusLabel: Record<WaitStatus, string> = {
   waiting: "대기 중",
@@ -98,6 +111,9 @@ export default function Home() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [orderNo, setOrderNo] = useState("");
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [boardView, setBoardView] = useState<BoardView>("orders");
+  const [orders, setOrders] = useState<BeverageOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
   const [entries, setEntries] = useState<WaitEntry[]>([]);
   const [loadingWaitlist, setLoadingWaitlist] = useState(true);
@@ -134,12 +150,26 @@ export default function Home() {
     }
   }, []);
 
+  const loadOrders = useCallback(async () => {
+    try {
+      const response = await fetch("/api/orders", { cache: "no-store" });
+      if (!response.ok) throw new Error("orders unavailable");
+      const data = (await response.json()) as { orders: BeverageOrder[] };
+      setOrders(data.orders);
+    } catch {
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadCatalog();
     loadWaitlist();
+    loadOrders();
     const timer = window.setInterval(() => setClock((value) => value + 1), 30000);
     return () => window.clearInterval(timer);
-  }, [loadCatalog, loadWaitlist]);
+  }, [loadCatalog, loadOrders, loadWaitlist]);
 
   const visibleProducts = selectedCategory === "all"
     ? products
@@ -149,6 +179,10 @@ export default function Home() {
     [entries],
   );
   const totalDrinks = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const activeOrders = orders.filter((order) => order.status === "received");
+  const readyOrders = orders.filter((order) => order.status === "ready");
+  const todayLabel = new Date().toLocaleDateString("ko-KR");
+  const todayOrders = orders.filter((order) => new Date(order.createdAt).toLocaleDateString("ko-KR") === todayLabel);
   const waitingCount = entries.filter((entry) => entry.status === "waiting").length;
   const notifiedCount = entries.filter((entry) => entry.status === "notified").length;
   const averageWait = activeEntries.length
@@ -158,6 +192,10 @@ export default function Home() {
   function goTo(nextScreen: Screen) {
     setNotice("");
     setScreen(nextScreen);
+    if (nextScreen === "board") {
+      void loadOrders();
+      void loadWaitlist();
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -340,6 +378,24 @@ export default function Home() {
     setNotice(action === "notify"
       ? data.notificationMode === "connected" ? "카카오 알림톡을 발송했습니다." : "카카오 호출이 기록되었습니다."
       : "상태가 변경되었습니다.");
+  }
+
+  async function updateOrder(id: number, action: "ready" | "cancel") {
+    const nextStatus: OrderStatus = action === "ready" ? "ready" : "cancelled";
+    setOrders((current) => current.map((order) => order.id === id ? { ...order, status: nextStatus } : order));
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "주문 상태를 변경하지 못했습니다.");
+      setNotice(action === "ready" ? "음료 준비 완료로 변경했습니다." : "주문을 취소했습니다.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "주문 상태를 변경하지 못했습니다.");
+      await loadOrders();
+    }
   }
 
   return (
@@ -576,32 +632,84 @@ export default function Home() {
         <section className="boardScreen">
           <div className="screenTitle boardTitle">
             <div><p>WEEKEND OPERATIONS</p><h1>현장 운영 보드</h1></div>
-            <button onClick={() => goTo("wait")}>＋ 새 웨이팅 등록</button>
+            <div className="boardQuickActions">
+              <button onClick={() => goTo("order")}>＋ 새 음료 주문</button>
+              <button onClick={() => goTo("wait")}>＋ 새 웨이팅 등록</button>
+            </div>
+          </div>
+          <div className="boardTabs" role="tablist" aria-label="운영 목록 선택">
+            <button role="tab" aria-selected={boardView === "orders"} className={boardView === "orders" ? "active" : ""}
+              onClick={() => setBoardView("orders")}>
+              음료 주문 <span>{activeOrders.length}</span>
+            </button>
+            <button role="tab" aria-selected={boardView === "waitlist"} className={boardView === "waitlist" ? "active" : ""}
+              onClick={() => setBoardView("waitlist")}>
+              테라리움 웨이팅 <span>{activeEntries.length}</span>
+            </button>
           </div>
           <div className="boardStats">
-            <article><small>현재 대기</small><strong>{waitingCount}<em>팀</em></strong></article>
-            <article><small>호출 완료</small><strong>{notifiedCount}<em>팀</em></strong></article>
-            <article><small>평균 대기</small><strong>{averageWait}<em>분</em></strong></article>
+            {boardView === "orders" ? (
+              <>
+                <article><small>준비 중</small><strong>{activeOrders.length}<em>건</em></strong></article>
+                <article><small>준비 완료</small><strong>{readyOrders.length}<em>건</em></strong></article>
+                <article><small>오늘 주문</small><strong>{todayOrders.length}<em>건</em></strong></article>
+              </>
+            ) : (
+              <>
+                <article><small>현재 대기</small><strong>{waitingCount}<em>팀</em></strong></article>
+                <article><small>호출 완료</small><strong>{notifiedCount}<em>팀</em></strong></article>
+                <article><small>평균 대기</small><strong>{averageWait}<em>분</em></strong></article>
+              </>
+            )}
           </div>
-          <div className="waitTable">
-            <div className="tableHead"><h2>웨이팅 리스트</h2><span>대기 순서대로 자동 정렬됩니다.</span></div>
-            {loadingWaitlist ? <div className="tableEmpty">웨이팅 현황을 불러오는 중입니다.</div>
-              : activeEntries.length === 0 ? <div className="tableEmpty">현재 진행 중인 웨이팅이 없습니다.</div>
-              : activeEntries.map((entry) => (
-                <article className="waitRow" key={entry.id}>
-                  <div><strong>{entry.ticketNo}</strong><small>{formatTime(entry.createdAt)} 등록</small></div>
-                  <div><strong>{entry.phoneMasked}</strong><small>{entry.note || "메모 없음"}</small></div>
-                  <div><small>인원</small><strong>{entry.partySize}명</strong></div>
-                  <div><small>대기</small><strong>{minutesSince(entry.createdAt)}분</strong></div>
-                  <span className={`boardStatus ${entry.status}`}>{statusLabel[entry.status]}</span>
-                  <div className="boardActions">
-                    {entry.status === "waiting" && <button className="callButton" onClick={() => updateEntry(entry.id, "notify")}>카카오 호출</button>}
-                    {entry.status === "notified" && <button className="enterButton" onClick={() => updateEntry(entry.id, "admit")}>입장 완료</button>}
-                    <button className="cancelButton" onClick={() => updateEntry(entry.id, "cancel")}>취소</button>
-                  </div>
-                </article>
-              ))}
-          </div>
+          {boardView === "orders" ? (
+            <div className="waitTable orderTable">
+              <div className="tableHead"><h2>음료 주문 내역</h2><span>최근 주문부터 표시됩니다.</span></div>
+              {loadingOrders ? <div className="tableEmpty">음료 주문을 불러오는 중입니다.</div>
+                : orders.length === 0 ? <div className="tableEmpty">아직 접수된 음료 주문이 없습니다.</div>
+                : orders.map((order) => (
+                  <article className="orderRow" key={order.id}>
+                    <div className="orderIdentity"><strong>{order.orderNo}</strong><small>{formatTime(order.createdAt)} 접수</small></div>
+                    <div className="orderCustomer"><strong>{order.customerName || "이름 없음"}</strong><small>{order.phoneMasked}</small></div>
+                    <div className="orderMenu">
+                      {order.items.map((item, index) => (
+                        <span key={`${item.productId}-${item.temperature}-${index}`}>
+                          <strong>{item.name}</strong> <small>{item.temperature === "COLD" ? "차갑게" : item.temperature} · {item.quantity}잔</small>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="orderTotal"><small>수량</small><strong>{order.totalItems}잔</strong></div>
+                    <span className={`orderStatus ${order.status}`}>
+                      {order.status === "received" ? "준비 중" : order.status === "ready" ? "준비 완료" : "취소"}
+                    </span>
+                    <div className="boardActions">
+                      {order.status === "received" && <button className="enterButton" onClick={() => updateOrder(order.id, "ready")}>준비 완료</button>}
+                      {order.status === "received" && <button className="cancelButton" onClick={() => updateOrder(order.id, "cancel")}>취소</button>}
+                    </div>
+                  </article>
+                ))}
+            </div>
+          ) : (
+            <div className="waitTable">
+              <div className="tableHead"><h2>테라리움 웨이팅</h2><span>대기 순서대로 자동 정렬됩니다.</span></div>
+              {loadingWaitlist ? <div className="tableEmpty">웨이팅 현황을 불러오는 중입니다.</div>
+                : activeEntries.length === 0 ? <div className="tableEmpty">현재 진행 중인 웨이팅이 없습니다.</div>
+                : activeEntries.map((entry) => (
+                  <article className="waitRow" key={entry.id}>
+                    <div><strong>{entry.ticketNo}</strong><small>{formatTime(entry.createdAt)} 등록</small></div>
+                    <div><strong>{entry.phoneMasked}</strong><small>{entry.note || "메모 없음"}</small></div>
+                    <div><small>인원</small><strong>{entry.partySize}명</strong></div>
+                    <div><small>대기</small><strong>{minutesSince(entry.createdAt)}분</strong></div>
+                    <span className={`boardStatus ${entry.status}`}>{statusLabel[entry.status]}</span>
+                    <div className="boardActions">
+                      {entry.status === "waiting" && <button className="callButton" onClick={() => updateEntry(entry.id, "notify")}>카카오 호출</button>}
+                      {entry.status === "notified" && <button className="enterButton" onClick={() => updateEntry(entry.id, "admit")}>입장 완료</button>}
+                      <button className="cancelButton" onClick={() => updateEntry(entry.id, "cancel")}>취소</button>
+                    </div>
+                  </article>
+                ))}
+            </div>
+          )}
         </section>
       )}
 
