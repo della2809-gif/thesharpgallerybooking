@@ -60,7 +60,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [apiMode, setApiMode] = useState<"live" | "demo">("live");
   const [notice, setNotice] = useState("");
-  const [now, setNow] = useState(Date.now());
+  const [, setNow] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const [partySize, setPartySize] = useState(2);
@@ -387,7 +387,6 @@ export default function Home() {
         </div>
       )}
       <footer><span>THE SHARP GALLERY · SEOUL</span><span>고객의 일상을 더 특별하게</span></footer>
-      <span className="srOnly" aria-live="polite">현재 시각 {new Date(now).toLocaleTimeString("ko-KR")}</span>
     </main>
   );
 }
