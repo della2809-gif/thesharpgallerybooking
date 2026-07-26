@@ -87,7 +87,7 @@ export default function Home() {
 
   const [categories, setCategories] = useState<Category[]>(fallbackCategories);
   const [products, setProducts] = useState<Product[]>(fallbackProducts);
-  const [selectedCategory, setSelectedCategory] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<number | "all">("all");
   const [temperatureByProduct, setTemperatureByProduct] = useState<Record<number, Temperature>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
@@ -138,7 +138,9 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [loadCatalog, loadWaitlist]);
 
-  const visibleProducts = products.filter((product) => product.categoryId === selectedCategory);
+  const visibleProducts = selectedCategory === "all"
+    ? products
+    : products.filter((product) => product.categoryId === selectedCategory);
   const activeEntries = useMemo(
     () => entries.filter((entry) => entry.status === "waiting" || entry.status === "notified"),
     [entries],
@@ -378,6 +380,11 @@ export default function Home() {
             <div className="menuArea">
               <div className="categoryRow">
                 <div className="categoryTabs" role="tablist" aria-label="음료 카테고리">
+                  <button role="tab" aria-selected={selectedCategory === "all"}
+                    className={selectedCategory === "all" ? "active" : ""}
+                    onClick={() => setSelectedCategory("all")}>
+                    전체 메뉴 <span>{products.length}</span>
+                  </button>
                   {categories.map((category) => (
                     <button key={category.id} role="tab" aria-selected={selectedCategory === category.id}
                       className={selectedCategory === category.id ? "active" : ""}
@@ -413,6 +420,9 @@ export default function Home() {
                           <b>{product.categoryId === 1 ? "COFFEE" : product.categoryId === 2 ? "TEA" : "BASIC"}</b>
                         </div>
                         <div className="productInfo">
+                          <span className="productCategoryLabel">
+                            {categories.find((category) => category.id === product.categoryId)?.name}
+                          </span>
                           <h2>{product.name}</h2>
                           <p>{product.description}</p>
                           <div className="productBottom">
