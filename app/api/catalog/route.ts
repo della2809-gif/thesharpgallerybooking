@@ -1,6 +1,7 @@
 import {
   ensureCatalogSchema,
   getCatalogDb,
+  getCatalogEnv,
   type CatalogCategory,
   type CatalogProduct,
 } from "../../../db/catalog";
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
       action?: "add-category" | "place-order";
       name?: string;
       customerName?: string;
+      phone?: string;
+      consent?: boolean;
       items?: Array<{ productId: number; name: string; temperature: string; quantity: number }>;
     };
     const db = getCatalogDb();
@@ -58,6 +61,7 @@ export async function POST(request: Request) {
     }
 
     if (payload.action === "place-order") {
+      const phone = String(payload.phone ?? "").replace(/\D/g, "");
       const items = (payload.items ?? [])
         .filter((item) => Number(item.quantity) > 0)
         .map((item) => ({
@@ -67,13 +71,50 @@ export async function POST(request: Request) {
           quantity: Math.min(20, Math.max(1, Number(item.quantity))),
         }));
       if (!items.length) return Response.json({ error: "음료를 한 잔 이상 선택해 주세요." }, { status: 400 });
+      if (phone.length !== 11) return Response.json({ error: "휴대폰 번호 11자리를 확인해 주세요." }, { status: 400 });
+      if (!payload.consent) return Response.json({ error: "카카오 알림 수신 및 개인정보 이용 동의가 필요합니다." }, { status: 400 });
+
       const todayCount = await db.prepare("SELECT COUNT(*) AS count FROM beverage_orders WHERE date(created_at) = date('now')").first<{ count: number }>();
       const orderNo = `D${String((todayCount?.count ?? 0) + 1).padStart(3, "0")}`;
       const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+      const customerName = String(payload.customerName ?? "").trim().slice(0, 30);
+      const order = await db.prepare(
+        "INSERT INTO beverage_orders (order_no, customer_name, phone, consent, items_json, total_items) VALUES (?, ?, ?, 1, ?, ?) RETURNING id",
+      ).bind(orderNo, customerName, phone, JSON.stringify(items), totalItems).first<{ id: number }>();
+      if (!order) throw new Error("주문 저장 결과를 확인하지 못했습니다.");
+
+      const runtime = getCatalogEnv();
+      let notificationMode = "not-configured";
+      if (runtime.KAKAO_ALIMTALK_WEBHOOK_URL) {
+        try {
+          const response = await fetch(runtime.KAKAO_ALIMTALK_WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(runtime.KAKAO_ALIMTALK_WEBHOOK_SECRET ? { authorization: `Bearer ${runtime.KAKAO_ALIMTALK_WEBHOOK_SECRET}` } : {}),
+            },
+            body: JSON.stringify({
+              phone,
+              template: "BEVERAGE_ORDER_RECEIVED",
+              variables: {
+                orderNo,
+                customerName: customerName || "고객",
+                gallery: "더샵갤러리",
+                totalItems: String(totalItems),
+                items: items.map((item) => `${item.name} ${item.temperature} ${item.quantity}잔`).join(", "),
+              },
+            }),
+          });
+          notificationMode = response.ok ? "connected" : "failed";
+        } catch {
+          notificationMode = "failed";
+        }
+      }
+
       await db.prepare(
-        "INSERT INTO beverage_orders (order_no, customer_name, items_json, total_items) VALUES (?, ?, ?, ?)",
-      ).bind(orderNo, String(payload.customerName ?? "").trim().slice(0, 30), JSON.stringify(items), totalItems).run();
-      return Response.json({ orderNo, totalItems }, { status: 201 });
+        "UPDATE beverage_orders SET notification_status = ?, notified_at = CASE WHEN ? = 'connected' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id = ?",
+      ).bind(notificationMode, notificationMode, order.id).run();
+      return Response.json({ orderNo, totalItems, notificationMode }, { status: 201 });
     }
 
     return Response.json({ error: "지원하지 않는 요청입니다." }, { status: 400 });

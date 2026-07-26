@@ -91,6 +91,9 @@ export default function Home() {
   const [temperatureByProduct, setTemperatureByProduct] = useState<Record<number, Temperature>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [orderPhone, setOrderPhone] = useState("");
+  const [orderConsent, setOrderConsent] = useState(false);
+  const [orderNotificationMode, setOrderNotificationMode] = useState<"connected" | "not-configured" | "failed" | "">("");
   const [categoryName, setCategoryName] = useState("");
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [orderNo, setOrderNo] = useState("");
@@ -185,8 +188,17 @@ export default function Home() {
   }
 
   async function placeOrder() {
+    const orderPhoneDigits = orderPhone.replace(/\D/g, "");
     if (!cart.length) {
       setNotice("음료를 한 잔 이상 선택해 주세요.");
+      return;
+    }
+    if (orderPhoneDigits.length !== 11) {
+      setNotice("카카오 알림을 받을 휴대폰 번호 11자리를 확인해 주세요.");
+      return;
+    }
+    if (!orderConsent) {
+      setNotice("카카오 알림 수신 및 개인정보 이용에 동의해 주세요.");
       return;
     }
     setSubmittingOrder(true);
@@ -198,6 +210,8 @@ export default function Home() {
         body: JSON.stringify({
           action: "place-order",
           customerName,
+          phone: orderPhoneDigits,
+          consent: orderConsent,
           items: cart.map((item) => ({
             productId: item.id,
             name: item.name,
@@ -206,9 +220,14 @@ export default function Home() {
           })),
         }),
       });
-      const data = (await response.json()) as { orderNo?: string; error?: string };
+      const data = (await response.json()) as {
+        orderNo?: string;
+        error?: string;
+        notificationMode?: "connected" | "not-configured" | "failed";
+      };
       if (!response.ok || !data.orderNo) throw new Error(data.error || "주문을 접수하지 못했습니다.");
       setOrderNo(data.orderNo);
+      setOrderNotificationMode(data.notificationMode ?? "not-configured");
     } catch (error) {
       if (apiMode !== "demo" && error instanceof Error && error.message !== "demo") {
         setNotice(error.message);
@@ -216,9 +235,12 @@ export default function Home() {
         return;
       }
       setOrderNo(`D${String(Date.now()).slice(-3)}`);
+      setOrderNotificationMode("not-configured");
     }
     setCart([]);
     setCustomerName("");
+    setOrderPhone("");
+    setOrderConsent(false);
     setSubmittingOrder(false);
     goTo("complete");
   }
@@ -469,7 +491,23 @@ export default function Home() {
                 <span>호출 이름 <small>(선택)</small></span>
                 <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="예: 김더샵" />
               </label>
-              <button className="orderSubmit" disabled={!cart.length || submittingOrder} onClick={placeOrder}>
+              <label className="pickupName orderPhone">
+                <span>카카오 알림 받을 번호 <b>*</b></span>
+                <input inputMode="numeric" autoComplete="tel" value={orderPhone}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, "").slice(0, 11);
+                    setOrderPhone(digits.length > 7
+                      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+                      : digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits);
+                  }}
+                  placeholder="010-0000-0000" />
+              </label>
+              <label className="orderConsent">
+                <input type="checkbox" checked={orderConsent} onChange={(event) => setOrderConsent(event.target.checked)} />
+                <i>✓</i>
+                <span><strong>카카오 주문 알림 수신에 동의합니다.</strong><small>주문 확인 목적으로만 사용합니다.</small></span>
+              </label>
+              <button className="orderSubmit" disabled={!cart.length || orderPhone.replace(/\D/g, "").length !== 11 || !orderConsent || submittingOrder} onClick={placeOrder}>
                 {submittingOrder ? "접수 중..." : `${totalDrinks}잔 주문하기`} <span>→</span>
               </button>
             </aside>
@@ -523,7 +561,13 @@ export default function Home() {
           <p>REGISTRATION COMPLETE</p>
           <h1>{orderNo}</h1>
           <h2>{orderNo.startsWith("D") ? "음료 주문이 접수되었습니다." : "웨이팅 등록이 완료되었습니다."}</h2>
-          <span>{orderNo.startsWith("D") ? "음료가 준비되면 이름 또는 주문번호로 불러드릴게요." : "입장 순서가 되면 카카오톡으로 알려드릴게요."}</span>
+          <span>{orderNo.startsWith("D")
+            ? orderNotificationMode === "connected"
+              ? "주문 접수 알림톡을 발송했습니다. 음료가 준비되면 이름 또는 주문번호로 불러드릴게요."
+              : orderNotificationMode === "failed"
+                ? "주문은 접수됐지만 카카오 알림 발송에 실패했습니다. 직원에게 문의해 주세요."
+                : "주문은 접수됐습니다. 카카오 알림톡 연동이 완료되면 주문 확인 메시지도 함께 발송됩니다."
+            : "입장 순서가 되면 카카오톡으로 알려드릴게요."}</span>
           <button onClick={() => goTo("home")}>처음 화면으로 <i>→</i></button>
         </section>
       )}

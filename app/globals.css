@@ -128,8 +128,17 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .pickupName { display: block; margin: 17px 0 13px; }
 .pickupName span { display: block; margin-bottom: 7px; color: rgba(255,255,255,.72); font-size: 9px; font-weight: 800; }
 .pickupName small { opacity: .6; }
+.pickupName b { color: var(--pink); }
 .pickupName input { width: 100%; height: 48px; border: 1px solid rgba(255,255,255,.2); padding: 0 12px; color: white; background: rgba(255,255,255,.08); outline: none; font-size: 11px; }
 .pickupName input::placeholder { color: rgba(255,255,255,.4); }
+.orderPhone { margin-top: 0; }
+.orderConsent { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: start; margin: 4px 0 14px; cursor: pointer; }
+.orderConsent input { position: absolute; opacity: 0; pointer-events: none; }
+.orderConsent i { display: grid; width: 19px; height: 19px; place-items: center; border: 1px solid rgba(255,255,255,.35); color: transparent; font-size: 10px; font-style: normal; }
+.orderConsent input:checked + i { border-color: var(--pink); color: var(--forest-deep); background: var(--pink); }
+.orderConsent strong, .orderConsent small { display: block; }
+.orderConsent strong { color: rgba(255,255,255,.82); font-size: 8px; line-height: 1.5; }
+.orderConsent small { margin-top: 2px; color: rgba(255,255,255,.45); font-size: 7px; }
 .orderSubmit { display: flex; width: 100%; min-height: 58px; align-items: center; justify-content: space-between; border: 0; padding: 0 18px; color: #3e2730; background: var(--pink); font-size: 12px; font-weight: 900; }
 .orderSubmit span { font-size: 23px; }
 .orderSubmit:disabled { opacity: .38; cursor: not-allowed; }

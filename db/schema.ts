@@ -35,8 +35,12 @@ export const beverageOrders = sqliteTable("beverage_orders", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   orderNo: text("order_no").notNull(),
   customerName: text("customer_name").notNull().default(""),
+  phone: text("phone").notNull().default(""),
+  consent: integer("consent", { mode: "boolean" }).notNull().default(false),
   itemsJson: text("items_json").notNull(),
   totalItems: integer("total_items").notNull().default(1),
   status: text("status").notNull().default("received"),
+  notificationStatus: text("notification_status").notNull().default("not-configured"),
+  notifiedAt: text("notified_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

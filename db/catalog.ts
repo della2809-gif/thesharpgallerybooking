@@ -1,6 +1,10 @@
 import { env } from "cloudflare:workers";
 
-type CatalogEnv = { DB: D1Database };
+export type CatalogEnv = {
+  DB: D1Database;
+  KAKAO_ALIMTALK_WEBHOOK_URL?: string;
+  KAKAO_ALIMTALK_WEBHOOK_SECRET?: string;
+};
 
 export type CatalogCategory = {
   id: number;
@@ -18,6 +22,10 @@ export type CatalogProduct = {
 
 export function getCatalogDb() {
   return (env as unknown as CatalogEnv).DB;
+}
+
+export function getCatalogEnv() {
+  return env as unknown as CatalogEnv;
 }
 
 export async function ensureCatalogSchema(db: D1Database) {
@@ -40,13 +48,29 @@ export async function ensureCatalogSchema(db: D1Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_no TEXT NOT NULL,
       customer_name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      consent INTEGER NOT NULL DEFAULT 0,
       items_json TEXT NOT NULL,
       total_items INTEGER NOT NULL DEFAULT 1,
       status TEXT NOT NULL DEFAULT 'received',
+      notification_status TEXT NOT NULL DEFAULT 'not-configured',
+      notified_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS beverage_orders_created_at_idx ON beverage_orders(created_at DESC)"),
   ]);
+
+  const orderColumns = await db.prepare("PRAGMA table_info(beverage_orders)").all<{ name: string }>();
+  const existingColumns = new Set(orderColumns.results.map((column) => column.name));
+  const missingColumnStatements = [
+    !existingColumns.has("phone") && "ALTER TABLE beverage_orders ADD COLUMN phone TEXT NOT NULL DEFAULT ''",
+    !existingColumns.has("consent") && "ALTER TABLE beverage_orders ADD COLUMN consent INTEGER NOT NULL DEFAULT 0",
+    !existingColumns.has("notification_status") && "ALTER TABLE beverage_orders ADD COLUMN notification_status TEXT NOT NULL DEFAULT 'not-configured'",
+    !existingColumns.has("notified_at") && "ALTER TABLE beverage_orders ADD COLUMN notified_at TEXT",
+  ].filter((statement): statement is string => Boolean(statement));
+  for (const statement of missingColumnStatements) {
+    await db.prepare(statement).run();
+  }
 
   const count = await db.prepare("SELECT COUNT(*) AS count FROM menu_categories").first<{ count: number }>();
   if ((count?.count ?? 0) > 0) return;
