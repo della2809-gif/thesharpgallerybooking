@@ -50,9 +50,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .choiceCard::before { background-position: center; background-size: cover; transition: transform .4s ease; }
 .choiceCard:hover::before { transform: scale(1.025); }
 .choiceCard::after { z-index: -1; }
-.drinkChoice::before { background-image: url("/signature-coffee-menu.webp"); background-position: center 7%; }
+.drinkChoice::before { background-image: url("/images/home/signature-drink.webp"); background-position: center 7%; }
 .drinkChoice::after { background: linear-gradient(130deg, rgba(8,35,29,.95), rgba(8,35,29,.54) 64%, rgba(8,35,29,.25)); }
-.waitChoice::before { background-image: url("/signature-tea-menu.webp"); background-position: center 5%; }
+.waitChoice::before { background-image: url("/images/home/terrarium-waiting.webp"); background-position: center 5%; }
 .waitChoice::after { background: linear-gradient(130deg, rgba(198,106,132,.94), rgba(210,126,150,.68) 60%, rgba(17,55,45,.35)); }
 .choiceNumber { align-self: flex-end; font-family: Georgia, serif; font-size: 12px; letter-spacing: .12em; opacity: .75; }
 .choiceCopy small { display: block; margin-bottom: 10px; font-size: 9px; font-weight: 900; letter-spacing: .23em; opacity: .8; }
@@ -88,7 +88,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .productGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
 .productCard { overflow: hidden; display: grid; min-height: 232px; grid-template-columns: 112px minmax(0, 1fr); border: 1px solid var(--line); background: var(--paper); }
 .productVisual { display: flex; flex-direction: column; justify-content: space-between; padding: 17px 15px; color: white; background-position: center; background-size: cover; isolation: isolate; }
-.productVisual::before { position: absolute; content: ""; }
+.productVisual.hasImage { position: relative; }
+.productVisual.hasImage::after { position: absolute; inset: 0; z-index: -1; content: ""; background: linear-gradient(180deg, rgba(8,35,29,.12), rgba(8,35,29,.72)); }
 .productVisual span { font-family: Georgia, serif; font-size: 22px; opacity: .8; }
 .productVisual b { writing-mode: vertical-rl; align-self: flex-end; font-family: Georgia, serif; font-size: 10px; letter-spacing: .25em; }
 .visual-1 { background: linear-gradient(160deg, #1b4b3e, #082b23); }

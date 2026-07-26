@@ -52,6 +52,14 @@ const fallbackProducts: Product[] = [
   { id: 7, categoryId: 3, name: "생수", description: "시원하게 준비된 생수", temperatureOptions: ["COLD"] },
 ];
 
+const productImageByName: Record<string, string> = {
+  "블랜디드 플로럴 커피": "/images/products/floral-coffee.webp",
+  "블랜디드 블랙 커피": "/images/products/black-coffee.webp",
+  "블랜디드 디카페인 커피": "/images/products/decaf-coffee.webp",
+  "블랜디드 블랙 티": "/images/products/black-tea.webp",
+  "블랜디드 골드 티": "/images/products/gold-tea.webp",
+};
+
 const demoEntries: WaitEntry[] = [
   { id: 101, ticketNo: "T014", phoneMasked: "010-••••-2841", partySize: 2, drink: "블랜디드 블랙 커피 ICE 2잔", note: "유모차 동반", status: "waiting", createdAt: new Date(Date.now() - 18 * 60000).toISOString(), notifiedAt: null, admittedAt: null },
   { id: 102, ticketNo: "T015", phoneMasked: "010-••••-7730", partySize: 4, drink: "블랜디드 골드 티 HOT 2잔", note: "", status: "waiting", createdAt: new Date(Date.now() - 11 * 60000).toISOString(), notifiedAt: null, admittedAt: null },
@@ -397,7 +405,10 @@ export default function Home() {
                     const temperature = temperatureByProduct[product.id] ?? product.temperatureOptions[0];
                     return (
                       <article className="productCard" key={product.id}>
-                        <div className={`productVisual visual-${product.categoryId}`}>
+                        <div
+                          className={`productVisual visual-${product.categoryId} ${productImageByName[product.name] ? "hasImage" : ""}`}
+                          style={productImageByName[product.name] ? { backgroundImage: `url("${productImageByName[product.name]}")` } : undefined}
+                        >
                           <span>{String(index + 1).padStart(2, "0")}</span>
                           <b>{product.categoryId === 1 ? "COFFEE" : product.categoryId === 2 ? "TEA" : "BASIC"}</b>
                         </div>
